@@ -1,0 +1,25 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: infrastructure-operator-install-manifests
+  namespace: cluster0
+data:
+  100_assisted_installer_namespace.yaml: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: assisted-installer
+      labels:
+        name: assisted-installer
+  101_hive_subscription.yaml: |
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+      name: hive-operator
+      namespace: openshift-operators
+    spec:
+      channel: alpha
+      installPlanApproval: Automatic
+      name: hive-operator
+      source: community-operators
+      sourceNamespace: openshift-marketplace
