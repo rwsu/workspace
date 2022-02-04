@@ -23,3 +23,73 @@ data:
       name: hive-operator
       source: community-operators
       sourceNamespace: openshift-marketplace
+  102_local_storage_operator_namespace.yaml: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: openshift-local-storage
+      labels:
+        name: openshift-local-storage
+  103_local_storage_operator_group.yaml: |
+    apiVersion: operators.coreos.com/v1alpha2
+    kind: OperatorGroup
+    metadata:
+      name: local-operator-group
+      namespace: openshift-local-storage
+    spec:
+      targetNamespaces:
+        - openshift-local-storage
+  104_local_storage_operator_subscription.yaml: |
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+      name: local-storage-operator
+      namespace: openshift-local-storage
+    spec:
+      installPlanApproval: Automatic
+      name: local-storage-operator
+      source: redhat-operators
+      sourceNamespace: openshift-marketplace 
+  # 105_local_storage_operator_local_volume.yaml: |
+  #   apiVersion: local.storage.openshift.io/v1
+  #   kind: LocalVolume
+  #   metadata:
+  #     name: assisted-service
+  #     namespace: openshift-local-storage
+  #   spec:
+  #     logLevel: Normal
+  #     managementState: Managed
+  #     storageClassDevices:
+  #       - devicePaths:
+  #           - /dev/vdb
+  #         storageClassName: assisted-service
+  #         volumeMode: Filesystem
+  106_infrastructure_operator.yaml: |
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+      name: assisted-service-operator
+      namespace: assisted-installer
+    spec:
+      installPlanApproval: Automatic
+      name: assisted-service-operator
+      source: assisted-service-catalog
+      sourceNamespace: openshift-marketplace
+  # 107_assisted_service_config.yaml: |
+  #   apiVersion: agent-install.openshift.io/v1beta1
+  #   kind: AgentServiceConfig
+  #   metadata:
+  #     name: agent
+  #   spec:
+  #     databaseStorage:
+  #       accessModes:
+  #       - ReadWriteOnce
+  #       resources:
+  #         requests:
+  #           storage: 10Gi
+  #     filesystemStorage:
+  #       accessModes:
+  #       - ReadWriteOnce
+  #       resources:
+  #         requests:
+  #           storage: 20Gi
