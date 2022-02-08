@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: import-bootstrap-postgresql-database-job
+  namespace: assisted-installer
+spec:
+  template:
+    spec:
+      containers:
+      - env:
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: db.password
+              name: assisted-installer-rds
+        - name: BOOTSTRAP_POSTGRESQL_IP_ADDRESS
+          value: replace-with-bootstrap-postgres-ip-address
+        name: import-database-job
+        image: quay.io/ocpmetal/postgresql-12-centos7
+        command: ['sh', '-c', 'PGPASSWORD=$POSTGRESQL_PASSWORD pg_dump -d installer -h $BOOTSTRAP_POSTGRESQL_IP_ADDRESS -U admin | PGPASSWORD=$POSTGRESQL_PASSWORD psql -h postgres -U admin installer']
+      restartPolicy: Never
+  backoffLimit: 4
