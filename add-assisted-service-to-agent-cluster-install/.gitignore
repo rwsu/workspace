@@ -3,3 +3,5 @@ agent-cluster-install.yaml
 infraenv.yaml
 kubeconfig
 discovery.iso
+ec-private-key.pem
+ec-public-key.pem
