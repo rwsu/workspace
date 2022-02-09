@@ -14,10 +14,10 @@ EC_PUBLIC_KEY=$(cat ec-public-key.pem)
 
 sed "s#replace-with-bootstrap-postgres-ip-address#$BOOSTRAP_POSTGRES_IP_ADDRESS#" ./assisted-service-manifests/postgres-import-job.yaml.in > ./assisted-service-manifests/postgres-import-job.yaml
 sed "s#replace-with-bootstrap-postgres-ip-address#$BOOSTRAP_POSTGRES_IP_ADDRESS#" assisted-service-install-manifests.yaml.in > assisted-service-install-manifests.yaml
-sed "s#replace-with-ec-private-key#$EC_PRIVATE_KEY#" ./assisted-service-manifests/assisted-service-local-auth-key.yaml.in > ./assisted-service-manifests/assisted-service-local-auth-key.yaml
-sed "s#replace-with-ec-public-key#$EC_PUBLIC_KEY#" ./assisted-service-manifests/assisted-service-local-auth-key.yaml.in > ./assisted-service-manifests/assisted-service-local-auth-key.yaml
-sed "s#replace-with-ec-private-key#$EC_PRIVATE_KEY#" assisted-service-install-manifests.yaml.in > assisted-service-install-manifests.yaml
-sed "s#replace-with-ec-public-key#$EC_PUBLIC_KEY#" assisted-service-install-manifests.yaml.in > assisted-service-install-manifests.yaml
+sed -i "s#replace-with-ec-private-key#$EC_PRIVATE_KEY#" ./assisted-service-manifests/assisted-service-local-auth-key.yaml.in
+sed -i "s#replace-with-ec-public-key#$EC_PUBLIC_KEY#" ./assisted-service-manifests/assisted-service-local-auth-key.yaml.in 
+sed -i "s#replace-with-ec-private-key#$EC_PRIVATE_KEY#" assisted-service-install-manifests.yaml
+sed -i "s#replace-with-ec-public-key#$EC_PUBLIC_KEY#" assisted-service-install-manifests.yaml
 
 
 kubectl apply -f namespace.yaml
