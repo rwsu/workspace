@@ -1,0 +1,510 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: assisted-service-install-manifests
+  namespace: cluster0
+data:
+  100_assisted_installer_namespace.yaml: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: assisted-installer
+      labels:
+        name: assisted-installer
+  101_postgres_secret.yaml: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      labels:
+        app: postgres
+      name: assisted-installer-rds
+      namespace: assisted-installer
+    type: Opaque
+    stringData:
+      db.host: "postgres"
+      db.name: "installer"
+      db.password: "admin"
+      db.port: "5432"
+      db.user: "admin"
+  102_postgres_deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: postgres
+      namespace: assisted-installer
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: postgres
+      template:
+        metadata:
+          labels:
+            app: postgres
+        spec:
+          containers:
+          - env:
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: db.name
+                  name: assisted-installer-rds
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  key: db.user
+                  name: assisted-installer-rds
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: db.password
+                  name: assisted-installer-rds
+            image: quay.io/ocpmetal/postgresql-12-centos7
+            imagePullPolicy: IfNotPresent
+            name: postgres
+            ports:
+            - containerPort: 5432
+              protocol: TCP
+            resources:
+              limits:
+                cpu: 200m
+                memory: 500Mi
+              requests:
+                cpu: 100m
+                memory: 400Mi
+  103_postgres_service.yaml: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: postgres
+      name: postgres
+      namespace: assisted-installer
+    spec:
+      ports:
+      - nodePort: 30911
+        port: 5432
+        protocol: TCP
+        targetPort: 5432
+      selector:
+        app: postgres
+      type: LoadBalancer
+  104_bootstrap_postgres_database_import_job.yaml: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: import-bootstrap-postgresql-database-job
+      namespace: assisted-installer
+    spec:
+      template:
+        spec:
+          containers:
+          - env:
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: db.password
+                  name: assisted-installer-rds
+            - name: BOOTSTRAP_POSTGRESQL_IP_ADDRESS
+              value: replace-with-bootstrap-postgres-ip-address
+            name: import-database-job
+            image: quay.io/ocpmetal/postgresql-12-centos7
+            command: ['sh', '-c', 'PGPASSWORD=$POSTGRESQL_PASSWORD pg_dump -d installer -h $BOOTSTRAP_POSTGRESQL_IP_ADDRESS -U admin | PGPASSWORD=$POSTGRESQL_PASSWORD psql -h postgres -U admin installer']
+          restartPolicy: Never
+      backoffLimit: 4
+  105_assisted_service_configmap.yaml: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: assisted-service-config
+      namespace: assisted-installer
+      labels:
+        app: assisted-service
+    data:
+      SERVICE_BASE_URL: REPLACE_BASE_URL
+      IMAGE_SERVICE_BASE_URL: REPLACE_IMAGE_SERVICE_BASE_URL
+      NAMESPACE: assisted-installer
+      BASE_DNS_DOMAINS: ""
+      OS_IMAGES: '[{"openshift_version":"4.6","cpu_architecture":"x86_64","url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.6/4.6.8/rhcos-4.6.8-x86_64-live.x86_64.iso","rootfs_url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.6/4.6.8/rhcos-live-rootfs.x86_64.img","version":"46.82.202012051820-0"},{"openshift_version":"4.7","cpu_architecture":"x86_64","url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.7/4.7.33/rhcos-4.7.33-x86_64-live.x86_64.iso","rootfs_url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.7/4.7.33/rhcos-live-rootfs.x86_64.img","version":"47.84.202109241831-0"},{"openshift_version":"4.8","cpu_architecture":"x86_64","url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.8/4.8.14/rhcos-4.8.14-x86_64-live.x86_64.iso","rootfs_url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.8/4.8.14/rhcos-live-rootfs.x86_64.img","version":"48.84.202109241901-0"},{"openshift_version":"4.9","cpu_architecture":"x86_64","url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.9/4.9.0/rhcos-4.9.0-x86_64-live.x86_64.iso","rootfs_url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.9/4.9.0/rhcos-live-rootfs.x86_64.img","version":"49.84.202110081407-0"},{"openshift_version":"4.9","cpu_architecture":"arm64","url":"https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/4.9/4.9.0/rhcos-4.9.0-aarch64-live.aarch64.iso","rootfs_url":"https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/4.9/4.9.0/rhcos-4.9.0-aarch64-live-rootfs.aarch64.img","version":"49.84.202110080947-0"},{"openshift_version":"4.10","cpu_architecture":"x86_64","url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/pre-release/4.10.0-rc.0/rhcos-4.10.0-rc.0-x86_64-live.x86_64.iso","rootfs_url":"https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/pre-release/4.10.0-rc.0/rhcos-4.10.0-rc.0-x86_64-live-rootfs.x86_64.img","version":"410.84.202202012119-0"}]'
+      RELEASE_IMAGES: '[]'
+      MUST_GATHER_IMAGES: '{"4.7":{"cnv":"registry.redhat.io/container-native-virtualization/cnv-must-gather-rhel8:v2.6.5","ocs":"registry.redhat.io/ocs4/ocs-must-gather-rhel8","lso":"registry.redhat.io/openshift4/ose-local-storage-mustgather-rhel8"},"4.8":{"cnv":"registry.redhat.io/container-native-virtualization/cnv-must-gather-rhel8:v2.6.5","ocs":"registry.redhat.io/ocs4/ocs-must-gather-rhel8","lso":"registry.redhat.io/openshift4/ose-local-storage-mustgather-rhel8"},"4.9":{"cnv":"registry.redhat.io/container-native-virtualization/cnv-must-gather-rhel8:v2.6.5","ocs":"registry.redhat.io/ocs4/ocs-must-gather-rhel8","lso":"registry.redhat.io/openshift4/ose-local-storage-mustgather-rhel8"}}'
+      CREATE_S3_BUCKET: "true"
+      ENABLE_AUTO_ASSIGN: "true"
+      AUTH_TYPE: REPLACE_AUTH_TYPE_FLAG
+      JWKS_URL: https://api.openshift.com/.well-known/jwks.json
+      OCM_BASE_URL: https://api.integration.openshift.com/
+      SKIP_CERT_VERIFICATION: "true"
+      PUBLIC_CONTAINER_REGISTRIES: quay.io
+      CHECK_CLUSTER_VERSION: "false"
+      IPV6_SUPPORT: "true"
+      HW_VALIDATOR_REQUIREMENTS: '[{"version": "default", "master": {"cpu_cores": 4, "ram_mib":
+        8192, "disk_size_gb": 10, "installation_disk_speed_threshold_ms": 10}, "worker":
+        {"cpu_cores": 2, "ram_mib": 3072, "disk_size_gb": 10, "installation_disk_speed_threshold_ms":
+        10}, "sno": {"cpu_cores": 8, "ram_mib": 32768, "disk_size_gb": 10, "installation_disk_speed_threshold_ms":
+        10}}]'
+      DISABLED_HOST_VALIDATIONS: ""
+      DISABLED_STEPS: ""
+      STORAGE: filesystem
+  105_assisted_service_local_auth_key.yaml: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: assisted-installer-local-auth-key
+      namespace: assisted-installer
+    type: Opaque
+    data:
+      ec-private-key.pem: replace-with-ec-private-key
+      ec-public-key.pem: replace-with-ec-public-key
+  105_assisted_service_public_s3.yaml: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: assisted-installer-public-s3
+      namespace: assisted-installer
+      labels:
+        app: object-store
+    type: Opaque
+    stringData:
+      aws_access_key_id: "accessKey1"
+      aws_region: "us-east-1"
+      aws_secret_access_key: "verySecretKey1"
+      bucket: "pub-test"
+      endpoint: "http://object-store:9000"
+  105_assisted_service_s3.yaml: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: assisted-installer-s3
+      namespace: assisted-installer
+      labels:
+        app: object-store
+    type: Opaque
+    stringData:
+      aws_access_key_id: "accessKey1"
+      aws_region: "us-east-1"
+      aws_secret_access_key: "verySecretKey1"
+      bucket: "test"
+      endpoint: "http://object-store:9000"
+  105_assisted_service_sso.yaml: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: assisted-installer-sso
+      namespace: assisted-installer
+      labels:
+        app: assisted-service
+    type: Opaque
+    stringData:
+      ocm-service.clientId: REPLACE_OCM_ID
+      ocm-service.clientSecret: REPLACE_OCM_SECRET
+  105_assisted_service_service_account.yaml: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: assisted-service
+      namespace: assisted-installer
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: assisted-service
+      namespace: assisted-installer
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: assisted-service
+    subjects:
+    - kind: ServiceAccount
+      name: assisted-service
+      namespace: assisted-installer
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: assisted-service-leader-election-rolebinding
+      namespace: assisted-installer
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: assisted-service-leader-election-role
+    subjects:
+    - kind: ServiceAccount
+      name: assisted-service
+      namespace: assisted-installer
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: assisted-service
+      namespace: assisted-installer
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      verbs:
+      - create
+    - apiGroups:
+      - ""
+      resourceNames:
+      - assisted-service-baseiso-helper
+      - assisted-service-leader-election-helper
+      - assisted-service-migration-helper
+      resources:
+      - configmaps
+      verbs:
+      - get
+      - update
+      - delete
+    - apiGroups:
+      - coordination.k8s.io
+      resources:
+      - leases
+      verbs:
+      - create
+      - get
+      - update
+      - delete
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: assisted-service-leader-election-role
+      namespace: assisted-installer
+    rules:
+    - apiGroups:
+      - ""
+      - coordination.k8s.io
+      resources:
+      - configmaps
+      - leases
+      verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps/status
+      verbs:
+      - get
+      - update
+      - patch
+    - apiGroups:
+      - ""
+      resources:
+      - events
+      verbs:
+      - create
+      - patch
+  106_assisted_service.yaml: |
+    apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+    kind: Deployment
+    metadata:
+      name: assisted-service
+      namespace: assisted-installer
+    spec:
+      selector:
+        matchLabels:
+          app: assisted-service
+      replicas: 3
+      template:
+        metadata:
+          labels:
+            app: assisted-service
+        spec:
+          containers:
+            - name: assisted-service
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 2000Mi
+                requests:
+                  cpu: 300m
+                  memory: 400Mi
+              image: quay.io/ocpmetal/assisted-service:latest
+              imagePullPolicy: Always
+              ports:
+                - containerPort: 8090
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: 8090
+                initialDelaySeconds: 30
+              readinessProbe:
+                httpGet:
+                  path: /ready
+                  port: 8090
+              envFrom:
+                - configMapRef:
+                    name: assisted-service-config
+              env:
+                - name: DB_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: assisted-installer-rds
+                      key: db.host
+                - name: DB_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: assisted-installer-rds
+                      key: db.name
+                - name: DB_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: assisted-installer-rds
+                      key: db.password
+                - name: DB_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: assisted-installer-rds
+                      key: db.port
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: assisted-installer-rds
+                      key: db.user
+                - name: OCM_SERVICE_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: ocm-service.clientId
+                      name: assisted-installer-sso
+                - name: OCM_SERVICE_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: ocm-service.clientSecret
+                      name: assisted-installer-sso
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: assisted-installer-s3
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: assisted-installer-s3
+                - name: S3_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_region
+                      name: assisted-installer-s3
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      key: bucket
+                      name: assisted-installer-s3
+                - name: S3_ENDPOINT_URL
+                  valueFrom:
+                    secretKeyRef:
+                      key: endpoint
+                      name: assisted-installer-s3
+                - name: AWS_SECRET_ACCESS_KEY_PUBLIC
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: assisted-installer-public-s3
+                - name: AWS_ACCESS_KEY_ID_PUBLIC
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: assisted-installer-public-s3
+                - name: S3_REGION_PUBLIC
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_region
+                      name: assisted-installer-public-s3
+                - name: S3_BUCKET_PUBLIC
+                  valueFrom:
+                    secretKeyRef:
+                      key: bucket
+                      name: assisted-installer-public-s3
+                - name: S3_ENDPOINT_URL_PUBLIC
+                  valueFrom:
+                    secretKeyRef:
+                      key: endpoint
+                      name: assisted-installer-public-s3
+                - name: EC_PUBLIC_KEY_PEM
+                  valueFrom:
+                    secretKeyRef:
+                      key: ec-public-key.pem
+                      name: assisted-installer-local-auth-key
+                - name: EC_PRIVATE_KEY_PEM
+                  valueFrom:
+                    secretKeyRef:
+                      key: ec-private-key.pem
+                      name: assisted-installer-local-auth-key
+                - name: S3_USE_SSL
+                  value: "false"
+                - name: LOG_LEVEL
+                  value: "info"
+                - name: LOG_FORMAT
+                  value: "text"
+                - name: INSTALL_RH_CA
+                  value: "false"
+                - name: REGISTRY_CREDS
+                  value: ""
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: AWS_SHARED_CREDENTIALS_FILE
+                  value: /etc/.aws/credentials
+              volumeMounts:
+                - name: route53-creds
+                  mountPath: "/etc/.aws"
+                  readOnly: true
+                - name: mirror-registry-ca
+                  mountPath: "/etc/pki/ca-trust/extracted/pem/mirror_ca.pem"
+                  readOnly: true
+                  subPath: mirror_ca.pem
+                - name: mirror-registry-conf
+                  mountPath: "/etc/containers"
+                  readOnly: true
+          serviceAccountName: assisted-service
+          volumes:
+            - name: route53-creds
+              secret:
+                secretName: route53-creds
+                optional: true
+            - name: mirror-registry-ca
+              configMap:
+                name: mirror-registry-ca
+                defaultMode: 420
+                optional: true
+                items:
+                  - key: ca-bundle.crt
+                    path: mirror_ca.pem
+            - name: mirror-registry-conf
+              configMap:
+                name: mirror-registry-ca
+                defaultMode: 420
+                optional: true
+                items:
+                  - key: registries.conf
+                    path: registries.conf
+  107_assisted_service_service.yaml: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+      labels:
+        app: assisted-service
+      name: assisted-service
+      namespace: assisted-installer
+    spec:
+      ports:
+        - name: assisted-service
+          port: 8090
+          protocol: TCP
+          targetPort: 8090
+      selector:
+        app: assisted-service
+      type: LoadBalancer
+    status:
+      loadBalancer: {}
