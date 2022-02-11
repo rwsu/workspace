@@ -1,16 +1,18 @@
 import os
 import time
 
+num_agents = 5
+
 while True:
     process = os.popen('kubectl get agents -A | grep -v NAMESPACE')
     output = process.read()
     lines = output.count('\n')
-    if lines == 3:
-        print("3 agents now available")
+    if lines == num_agents:
+        print(str(num_agents) + " agents now available")
         print(output.strip())
         break
     else:
-        print ("Only " + str(lines) + " agents available, waiting for 3")
+        print ("Only " + str(lines) + " agents available, waiting for " + str(num_agents))
         time.sleep(5)
 
 print("\nFix hostname and approval")
