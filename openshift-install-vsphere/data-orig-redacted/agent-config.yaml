@@ -1,0 +1,84 @@
+apiVersion: v1alpha1
+metadata:
+  name: ostest
+  namespace: cluster0
+rendezvousIP: 192.168.222.42
+hosts:
+    - hostname: rwsu-vm1
+      interfaces:
+        - name: eth0
+          macAddress: 00:50:56:bd:f5:0c
+      networkConfig:
+        interfaces:
+          - name: eth0
+            type: ethernet
+            state: up
+            mac-address: 00:50:56:bd:f5:0c
+            ipv4:
+              enabled: true
+              address:
+                - ip: 192.168.222.42
+                  prefix-length: 24
+              dhcp: false
+        dns-resolver:
+          config:
+            server:
+              - 192.168.222.1
+        routes:
+          config:
+            - destination: 0.0.0.0/0 
+              next-hop-address: 192.168.222.1
+              next-hop-interface: eth0
+              table-id: 254
+    - hostname: rwsu-vm2
+      interfaces:
+        - name: eth0
+          macAddress: 00:50:56:bd:63:21
+      networkConfig:
+        interfaces:
+          - name: eth0
+            type: ethernet
+            state: up
+            mac-address: 00:50:56:bd:63:21
+            ipv4:
+              enabled: true
+              address:
+                - ip: 192.168.222.43
+                  prefix-length: 24
+              dhcp: false
+        dns-resolver:
+          config:
+            server:
+              - 192.168.222.1
+        routes:
+          config:
+            - destination: 0.0.0.0/0 
+              next-hop-address: 192.168.222.1
+              next-hop-interface: eth0
+              table-id: 254
+    - hostname: rwsu-vm3
+      interfaces:
+        - name: eth0
+          macAddress: 00:50:56:bd:53:ee
+      networkConfig:
+        interfaces:
+          - name: eth0
+            type: ethernet
+            state: up
+            mac-address: 00:50:56:bd:53:ee
+            ipv4:
+              enabled: true
+              address:
+                - ip: 192.168.222.44
+                  prefix-length: 24
+              dhcp: false
+        dns-resolver:
+          config:
+            server:
+              - 192.168.222.1
+        routes:
+          config:
+            - destination: 0.0.0.0/0 
+              next-hop-address: 192.168.222.1
+              next-hop-interface: eth0
+              table-id: 254

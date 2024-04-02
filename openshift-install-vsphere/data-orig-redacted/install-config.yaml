@@ -1,0 +1,41 @@
+apiVersion: v1
+baseDomain: domain.com
+compute:
+- hyperthreading: Enabled   
+  name: worker
+  replicas: 0 
+controlPlane:
+  hyperthreading: Enabled   
+  name: master
+  replicas: 3 
+metadata:
+  name: rwsu
+platform:
+  vsphere:
+    vcenters:
+    - datacenters:
+      - datacenter-name
+      password: changeme
+      server: server
+      user: username
+    failuredomains:
+    - name: test-failure-baseDomain
+      server: server
+      region: changeme-region
+      topology:
+        datacenter: datacenter-name
+        datastore: /datacenter-name/datastore/datastore-name
+        computeCluster: /datacenter-name/host/cluster-name
+        folder: /datacenter-name/vm/datastore-name/iso/rwsu-isos
+        networks:
+        - network-segment-name
+    apiVIPs: 
+      - 192.168.222.40
+    ingressVIPs: 
+      - 192.168.222.41
+networking:
+  machineNetwork:
+    - cidr: 192.168.222.0/24
+fips: false 
+pullSecret: 'changeme' 
+sshKey: 'changeme' 
