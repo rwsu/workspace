@@ -1,0 +1,9 @@
+export GOVC_URL=vcenter.server.com
+export GOVC_USERNAME=username
+export GOVC_PASSWORD=password
+export GOVC_DATACENTER=datacenter-name
+export GOVC_INSECURE=true
+export GOVC_DATASTORE=/datacenter-name/datastore/datastore-name
+export GOVC_CLUSTER=/datacenter-name/host/cluster-name
+export ISO=path-on-datastore-to-upload-agent-iso
+export NET=your-network-segment
